@@ -1,0 +1,111 @@
+#!/bin/bash
+
+
+function config {
+  (until curl -sSfLk -m 10 -H 'Accept: text/plain' "${1%/}"/v2/tasks; do [ $# -lt 2 ] && return 1 || shift; done) | while read -r txt
+ do
+ set -- $txt
+    if [ $# -lt 2 ]; then
+      shift $#
+      continue
+    fi
+ app_test="$1"
+ config_file=$app_test.conf
+ apps "$k" "$app_test" > /tmp/${config_file}
+ if [ -f /etc/nginx/test.d/${config_file} ]
+ then
+  if ! diff -q /tmp/${config_file} /etc/nginx/test.d/${config_file} >&2
+   then
+   echo "Diffs are found in ${config_file} and over-writing the existing file"
+   cat /tmp/${config_file} > /etc/nginx/test.d/${config_file}
+   else
+   echo "Don't do any thing"
+  fi
+ else
+  echo "new conf file found in ${config_file}"
+  cat /tmp/${config_file} > /etc/nginx/test.d/${config_file}
+ fi
+ done
+##################Testing Nginx Configs##############################3  
+  echo "testing Nginx"
+  $conf_test
+  if [ "$?" = "0" ]
+  then
+  echo "reloading nginx"
+  $conf_reload
+  else
+  echo "errors in Nginx conf file"
+  fi
+}
+
+function apps {
+ma=$1
+hay=$2
+ (until curl -sSfLk -m 10 -H 'Accept: text/plain' "${ma%/}"/v2/apps/"${hay}"/tasks; do [ $# -lt 2 ] && return 1 || shift; done) | while read -r txt
+  do
+ set -- $txt
+    if [ $# -lt 2 ]; then
+      shift $#
+      continue
+    fi
+    local app_name="$1"
+    local app_port="$2"
+    shift 2
+
+  if [ ! -z "${app_port##*[!0-9]*}" ]
+    then
+      cat <<EOF
+
+upstream $app_name {
+EOF
+      while [[ $# -ne 0 ]]
+      do
+        echo "  server $1;"
+        shift
+      done
+    fi
+  #done
+
+        cat <<EOF
+}
+EOF
+
+######################################################################
+
+
+# For HTTP Configuration
+cat << EOF
+server {
+
+
+  listen               $ip_addrs:$app_port;
+
+  server_name          $ip_addrs;
+  #Newly added
+  error_page   500 502 503 504  /index.html;
+    location = /index.html {
+        root   /var/www/;
+    }
+
+  location /            {
+  #  proxy_set_header   Host \$host;
+    proxy_pass         http://$app_name/;
+    proxy_http_version 1.1;
+  #  proxy_set_header   Upgrade \$http_upgrade;
+  #  proxy_set_header   Connection "upgrade";
+  }
+}
+
+EOF
+
+done
+
+}
+
+conf_test="nginx -t"
+conf_reload="nginx -s reload"
+
+ip_addrs=$(ip addr | grep 'state UP' -A2 | tail -n1 | awk '{print $2}' | cut -f1  -d'/')
+
+k=$1
+config "$@"

@@ -46,8 +46,17 @@ if it's created the files then Process successfully
 You can access the application using 
 
 IP of your server:service_port of Marathon App
+
 **Ex:**
 
 `192.168.0.10:10002`
 
 Here 192.168.0.10 is your server IP and 10002 is service port of Marathon App.
+
+**ToDo:**
+
+```
+1. Accept multiple Marathon Urls 
+2. Accept Nginx Config path Provided by user
+3. Accept URL Provided by user.
+```

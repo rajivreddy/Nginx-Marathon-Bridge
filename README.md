@@ -20,7 +20,7 @@ mkdir -p /etc/nginx/temp.d
 Update the nginx config file: 
 
 vim /etc/nginx/nginx.conf
-#add this line in HTTP block
+add this line in HTTP block
 http {
 ---
 ---
